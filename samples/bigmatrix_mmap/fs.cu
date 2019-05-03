@@ -112,8 +112,18 @@ int main( int argc, char** argv)
 	double total_time=0;
 	size_t total_size;
 	
-	int device_number=2;
-	CUDA_SAFE_CALL(cudaSetDevice(device_number));
+	int device = 0;
+	char* gpudev = getenv("GPUDEVICE");
+
+	if (gpudev != NULL)
+		device = atoi(gpudev);
+
+	CUDA_SAFE_CALL(cudaSetDevice(device));
+
+	cudaDeviceProp deviceProp;
+	CUDA_SAFE_CALL(cudaGetDeviceProperties(&deviceProp, device));
+
+	printf("Running on device %d: \"%s\"\n", device, deviceProp.name);
 
 	memset(time_res,0,MAX_TRIALS*sizeof(double));
 for(int i=0;i<trials+1;i++){
@@ -139,9 +149,9 @@ for(int i=0;i<trials+1;i++){
 	if (!i) time_before=0;
 	// vector, matrix, out
         bigmatrix_mmap<<<nblocks,nthreads,0,gpuGlobals->streamMgr->kernelStream>>>(d_filenames[0],d_filenames[1],d_filenames[2]);
-	
+
 	// blocking!!
-	run_gpufs_handler(gpuGlobals,device_number);
+	run_gpufs_handler(gpuGlobals,device);
 
 
     cudaError_t error = cudaDeviceSynchronize();

@@ -219,13 +219,9 @@ for(int t=-1;t<trials+1;t++){
 	posix_fadvise(fd_m,0,0,POSIX_FADV_WILLNEED);
 //	assert(h_matrix);
 
-
-
-
-	float* h_d_matrix[NUM_STREAMS];
-	float* d_matrix[NUM_STREAMS];
+	float* matrix[NUM_STREAMS];
 	
-	// size_t data_per_chunk=146800640/2;
+	//size_t data_per_chunk=146800640/2;
 	size_t data_per_chunk=size_m/8;
 
 
@@ -240,8 +236,7 @@ for(int t=-1;t<trials+1;t++){
 	assert(data_per_chunk%sizeof(float)==0);
 	
 	for (int i=0;i<NUM_STREAMS;i++){
-		CUDA_SAFE_CALL(cudaHostAlloc(&h_d_matrix[i], data_per_chunk,  cudaHostAllocDefault));
-        	CUDA_SAFE_CALL(cudaMalloc(&d_matrix[i],data_per_chunk));
+		CUDA_SAFE_CALL(cudaMallocManaged(&matrix[i], data_per_chunk));
 	}
 	
         double time_before=_timestamp();
@@ -250,22 +245,20 @@ for(int t=-1;t<trials+1;t++){
 	int fd_v;
 	size_t size_v;
 
-	char* h_vector=(char*)open_map_file(argv[1],&fd_v,&size_v,O_RDONLY);
-	assert(h_vector);
+	char* h_vector=(char*)open_map_file(argv[1],&fd_v,&size_v,O_RDONLY, false);
+	assert(h_vector == NULL);
 
 
+	float* vector;
+	CUDA_SAFE_CALL(cudaMallocManaged(&vector, size_v));
+	pread(fd_v, (char*)vector, size_v, 0);
 
-
-	float* d_vector;
-        CUDA_SAFE_CALL(cudaMalloc(&d_vector,size_v));
-	
 	int values_per_block=10;
 	int nblocks=(data_per_chunk/size_v/values_per_block);
 
 	assert(data_per_chunk/size_v/nblocks>0);
 	assert((data_per_chunk/size_v)%nblocks==0);
 	
-
 	printf("Running with %d blocks, %d threads, %d vals per block\n",nblocks, nthreads,(data_per_chunk/size_v)/nblocks );
 
 	int fd_v_out;
@@ -274,10 +267,9 @@ for(int t=-1;t<trials+1;t++){
 	
 	char* h_v_out=(char*)open_map_file(argv[3], &fd_v_out, &size_v_out, O_RDWR);
 	assert(h_v_out);
-	float* h_d_v_out;
-	float* d_v_out;
-        CUDA_SAFE_CALL(cudaHostAlloc(&h_d_v_out,size_v_out, cudaHostAllocDefault));
-        CUDA_SAFE_CALL(cudaMalloc(&d_v_out,size_v_out));
+
+	float* vector_out;
+	CUDA_SAFE_CALL(cudaMallocManaged(&vector_out, size_v));
 	
 	fprintf(stderr,"using: %s for matrix of size %lu, %s for vector of size %lu, %s for output of size %lu, data per chunk %lu\n",
 				argv[2], size_m,argv[1],size_v,argv[3],size_v_out,data_per_chunk);
@@ -290,24 +282,16 @@ for(int t=-1;t<trials+1;t++){
         
         
 	int c=0;
-
-	CUDA_SAFE_CALL(cudaMemcpy(d_vector,h_vector,size_v,cudaMemcpyHostToDevice));
 	
 	for(size_t i=0 ;i<size_m;i+=data_per_chunk)
 	{
 		fprintf(stderr,"chunk %lu %d\n",i, i/data_per_chunk);
 	
-		size_t total_read=0;
 		CUDA_SAFE_CALL(cudaStreamSynchronize(s[c]));
-		total_read=pread(fd_m, (char*)(h_d_matrix[c]), data_per_chunk, i);
+		pread(fd_m, (char*)(matrix[c]), data_per_chunk, i);
 
-		CUDA_SAFE_CALL(cudaMemcpyAsync((char*)(d_matrix[c]),h_d_matrix[c],
-						data_per_chunk,cudaMemcpyHostToDevice,s[c])); 
-	
-		bigmatrix_nofiles_simple<<<nblocks,nthreads,0,s[c]>>>(d_matrix[c],d_vector,d_v_out,i/size_v,
+		bigmatrix_nofiles_simple<<<nblocks,nthreads,0,s[c]>>>(matrix[c],vector,vector_out,i/size_v,
 								data_per_chunk/(sizeof(float)), size_v/(sizeof(float)));
-		
-		CUDA_SAFE_CALL(cudaMemcpyAsync(h_d_v_out+i/size_v,d_v_out+i/size_v,data_per_chunk/size_v*sizeof(float),cudaMemcpyDeviceToHost,s[c]));
 		c++;
 		c%=NUM_STREAMS;
 	}				
@@ -322,14 +306,10 @@ for(int t=-1;t<trials+1;t++){
 	    }
 	
 	
-	memcpy(h_v_out,h_d_v_out,size_v_out);
-
-	cudaFree(d_v_out);
-	cudaFree(d_vector);
+	memcpy(h_v_out,vector_out,size_v_out);
 	unmap_close_file(fd_v_out,h_v_out,size_v_out,"out");
-
 	close(fd_m);
-	unmap_close_file(fd_v,h_vector,size_v,"vector");
+	close(fd_v);
 	
 	double time_after=_timestamp();
 	total_time+=(time_after-time_before);
@@ -338,10 +318,10 @@ for(int t=-1;t<trials+1;t++){
 
 	if (t>0) fprintf(stderr,"total time %.0f us, avg %.0f us, bw %.3f GB/s \n ", time_after-time_before, total_time/t, t*1.0e6*(size_v+size_m+size_v_out)/total_time/(1024.0*1024.0*1024.0));
 	total_data=(size_v+size_m+size_v_out);
-        cudaFreeHost(h_d_v_out);
+	CUDA_SAFE_CALL(cudaFree(vector));
+	CUDA_SAFE_CALL(cudaFree(vector_out));
 	for (int i=0;i<NUM_STREAMS;i++){
-		CUDA_SAFE_CALL(cudaFreeHost(h_d_matrix[i]));
-        	CUDA_SAFE_CALL(cudaFree(d_matrix[i]));
+        	CUDA_SAFE_CALL(cudaFree(matrix[i]));
 	}
 
 	cudaDeviceReset();

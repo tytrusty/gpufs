@@ -22,14 +22,11 @@
 #include <sys/time.h>
 #include <omp.h>
 
-      double _timestamp(){
-                struct timeval tv;
-                gettimeofday(&tv,0);
-                return 1e6*tv.tv_sec+tv.tv_usec;
-        }
-
-
-
+double _timestamp(){
+          struct timeval tv;
+          gettimeofday(&tv,0);
+          return 1e6*tv.tv_sec+tv.tv_usec;
+}
 
 void die(const char* msg){
 	perror(msg);

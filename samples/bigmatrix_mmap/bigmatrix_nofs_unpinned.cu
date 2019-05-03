@@ -240,7 +240,8 @@ for(int t=-1;t<trials+1;t++){
 	assert(data_per_chunk%sizeof(float)==0);
 	
 	for (int i=0;i<NUM_STREAMS;i++){
-		CUDA_SAFE_CALL(cudaHostAlloc(&h_d_matrix[i], data_per_chunk,  cudaHostAllocDefault));
+		// CUDA_SAFE_CALL(cudaHostAlloc(&h_d_matrix[i], data_per_chunk,  cudaHostAllocDefault));
+		h_d_matrix[i] = (float*)malloc(data_per_chunk);
         	CUDA_SAFE_CALL(cudaMalloc(&d_matrix[i],data_per_chunk));
 	}
 	
@@ -276,7 +277,7 @@ for(int t=-1;t<trials+1;t++){
 	assert(h_v_out);
 	float* h_d_v_out;
 	float* d_v_out;
-        CUDA_SAFE_CALL(cudaHostAlloc(&h_d_v_out,size_v_out, cudaHostAllocDefault));
+	h_d_v_out = (float*)malloc(size_v_out);
         CUDA_SAFE_CALL(cudaMalloc(&d_v_out,size_v_out));
 	
 	fprintf(stderr,"using: %s for matrix of size %lu, %s for vector of size %lu, %s for output of size %lu, data per chunk %lu\n",
@@ -338,9 +339,9 @@ for(int t=-1;t<trials+1;t++){
 
 	if (t>0) fprintf(stderr,"total time %.0f us, avg %.0f us, bw %.3f GB/s \n ", time_after-time_before, total_time/t, t*1.0e6*(size_v+size_m+size_v_out)/total_time/(1024.0*1024.0*1024.0));
 	total_data=(size_v+size_m+size_v_out);
-        cudaFreeHost(h_d_v_out);
+	free(h_d_v_out);
 	for (int i=0;i<NUM_STREAMS;i++){
-		CUDA_SAFE_CALL(cudaFreeHost(h_d_matrix[i]));
+		free(h_d_matrix[i]);
         	CUDA_SAFE_CALL(cudaFree(d_matrix[i]));
 	}
 

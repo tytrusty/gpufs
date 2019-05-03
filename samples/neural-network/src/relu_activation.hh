@@ -14,5 +14,9 @@ public:
 	~ReLUActivation();
 
 	Matrix& forward(Matrix& Z);
+
+	// unused
+	Matrix& forward(char* A_fn, Shape A_shape) { return A; }
+
 	Matrix& backprop(Matrix& dA, float learning_rate = 0.01);
 };

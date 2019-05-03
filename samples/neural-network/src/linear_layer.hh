@@ -1,14 +1,6 @@
 #pragma once
 #include "nn_layer.hh"
-
-// for unit testing purposes only
-namespace {
-	class LinearLayerTest_ShouldReturnOutputAfterForwardProp_Test;
-	class NeuralNetworkTest_ShouldPerformForwardProp_Test;
-	class LinearLayerTest_ShouldReturnDerivativeAfterBackprop_Test;
-	class LinearLayerTest_ShouldUptadeItsBiasDuringBackprop_Test;
-	class LinearLayerTest_ShouldUptadeItsWeightsDuringBackprop_Test;
-}
+#include "fs_initializer.cu.h"
 
 class LinearLayer : public NNLayer {
 private:
@@ -18,22 +10,29 @@ private:
 	Matrix b;
 
 	Matrix Z;
-	Matrix A;
 	Matrix dA;
+
+	Matrix A;
+	Shape A_shape;
+	char* A_fn = 0;
+	bool is_fs_layer = false;
+	volatile GPUGlobals* gpuGlobals = NULL;
 
 	void initializeBiasWithZeros();
 	void initializeWeightsRandomly();
 
 	void computeAndStoreBackpropError(Matrix& dZ);
-	void computeAndStoreLayerOutput(Matrix& A);
+	void computeAndStoreLayerOutput();
 	void updateWeights(Matrix& dZ, float learning_rate);
 	void updateBias(Matrix& dZ, float learning_rate);
 
 public:
 	LinearLayer(std::string name, Shape W_shape);
+	LinearLayer(std::string name, Shape W_shape, volatile GPUGlobals* gpuGlobals);
 	~LinearLayer();
 
 	Matrix& forward(Matrix& A);
+	Matrix& forward(char* A_fn, Shape A_shape);
 	Matrix& backprop(Matrix& dZ, float learning_rate = 0.01);
 
 	int getXDim() const;
@@ -41,11 +40,4 @@ public:
 
 	Matrix getWeightsMatrix() const;
 	Matrix getBiasVector() const;
-
-	// for unit testing purposes only
-	friend class LinearLayerTest_ShouldReturnOutputAfterForwardProp_Test;
-	friend class NeuralNetworkTest_ShouldPerformForwardProp_Test;
-	friend class LinearLayerTest_ShouldReturnDerivativeAfterBackprop_Test;
-	friend class LinearLayerTest_ShouldUptadeItsBiasDuringBackprop_Test;
-	friend class LinearLayerTest_ShouldUptadeItsWeightsDuringBackprop_Test;
 };

@@ -12,11 +12,15 @@ private:
 	Matrix Y;
 	Matrix dY;
 	float learning_rate;
+	
+	char* d_input_fn;
+	
 
 public:
 	NeuralNetwork(float learning_rate = 0.01);
 	~NeuralNetwork();
 
+	Matrix forward(char* A_fn, Shape A_shape);
 	Matrix forward(Matrix X);
 	void backprop(Matrix predictions, Matrix target);
 

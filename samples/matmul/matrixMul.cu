@@ -453,9 +453,9 @@ int main(int argc, char** argv)
 	fn[0]='0';
 	printf("%s\n", fn);
 	int fd=open(fn,O_RDONLY);
-	if (fd<0) { perror("cant open mtx_c\n"); exit(-1);}
-	if(read(fd, h_C,mem_size_C)!=mem_size_C) {perror("cant read\n"); exit(-1);}
-	close(fd);
+	//if (fd<0) { perror("cant open mtx_c\n"); exit(-1);}
+	//if(read(fd, h_C,mem_size_C)!=mem_size_C) {perror("mtx_c cant read\n"); exit(-1);}
+	//close(fd);
 	fd=open("mtx_c_orig_tiled",O_RDONLY);
 	if (fd<0) { perror("cant open mtx_c_tiled\n"); exit(-1);}
 	if(read(fd, h_C_TILED, mem_size_C)!=mem_size_C) {perror("cant read tiled\n"); exit(-1);}
@@ -468,7 +468,7 @@ int main(int argc, char** argv)
 
 #define FLOP(t) ((double)uiHA*uiWA*uiWB*2)/(1<<30)/(t/1e6)
 
-	fprintf(stderr,"RESULTS: %d %d %d %d %d %d  %.0f %.0f %.0f %.3f %.3f %.3f %.0f %.0f %.3f \n",uiHA,uiWA,uiWB,uiHA*uiWA,uiWA*uiWB,uiHA*uiWB, res_cuda,res_tuned,total_time,FLOP(res_cuda),FLOP(res_tuned),FLOP(total_time), res_cuda_data, res_cuda_kernel, res_cuda_data/res_cuda_kernel);
+	fprintf(stderr,"RESULTS: %d %d %d %d %d %d  \n cuda:%.0f cuda_tuned:%.0f gpufs:%.0f %.3f %.3f %.3f %.0f %.0f %.3f \n",uiHA,uiWA,uiWB,uiHA*uiWA,uiWA*uiWB,uiHA*uiWB, res_cuda,res_tuned,total_time,FLOP(res_cuda),FLOP(res_tuned),FLOP(total_time), res_cuda_data, res_cuda_kernel, res_cuda_data/res_cuda_kernel);
 
 	// clean up memory
 	cudaFreeHost(h_A);

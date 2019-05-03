@@ -178,6 +178,7 @@ int main(int argc, char** argv)
 		initializer(&gpuGlobals);
 
 		init_device_app();
+
 		init_app();
 
 		if (num_files > 0)

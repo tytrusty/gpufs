@@ -9,6 +9,7 @@ CUDA_ROOT_DIR=/usr/local/cuda
 # GPUFS dirs
 GPUFS_ROOT_DIR=../../
 GPUFSINC=$(GPUFS_ROOT_DIR)/include
+GPUFSLIBS = -lgpufs -L$(GPUFS_ROOT_DIR)/lib
 
 
 ##########################################################
@@ -42,7 +43,7 @@ CUDA_LINK_LIBS= -lcudart -lcudadevrt
 ## Project file structure ##
 
 # Source file directory:
-SRC_DIR = src
+SRC_DIR = ./src/
 
 # Object file directory:
 OBJ_DIR = bin
@@ -67,7 +68,7 @@ OBJS = $(OBJ_DIR)/bce_cost.o $(OBJ_DIR)/coordinates_dataset.o $(OBJ_DIR)/linear_
 
 # Link c++ and CUDA compiled object files to target executable:
 $(EXE) : $(OBJS)
-	$(NVCC) $(NVCC_FLAGS) $(OBJS) -o $@ $(CUDA_INC_DIR) $(CUDA_LIB_DIR) $(CUDA_LINK_LIBS)
+	$(NVCC) $(NVCC_FLAGS) $(OBJS) -o $@ $(CUDA_INC_DIR) $(CUDA_LIB_DIR) $(CUDA_LINK_LIBS) -I$(GPUFSINC) $(GPUFSLIBS) 
 
 # Compile main .cpp file to object files:
 $(OBJ_DIR)/%.o : %.cpp
@@ -79,10 +80,10 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
 
 # Compile CUDA source files to object files:
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cu $(INC_DIR)/%.hh
-	$(NVCC) $(NVCC_FLAGS) -c $< -o $@ $(NVCC_LIBS)
+	$(NVCC) $(NVCC_FLAGS) -c $< -o $@ $(NVCC_LIBS) -I$(GPUFSINC)
 
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cu
-	$(NVCC) $(NVCC_FLAGS) -c $< -o $@ $(NVCC_LIBS)
+	$(NVCC) $(NVCC_FLAGS) -c $< -o $@ $(NVCC_LIBS) -I$(GPUFSINC)
 
 # Clean objects in object directory.
 clean:

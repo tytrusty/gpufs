@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "../nn_utils/matrix.hh"
+#include "matrix.hh"
 
 class NNLayer {
 protected:

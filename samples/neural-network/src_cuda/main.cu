@@ -1,7 +1,6 @@
 #include <iostream>
 #include <time.h>
 
-#include "fs_initializer.cu.h"
 #include "neural_network.hh"
 #include "linear_layer.hh"
 #include "relu_activation.hh"
@@ -13,27 +12,7 @@
 
 float computeAccuracy(const Matrix& predictions, const Matrix& targets);
 
-void init_device_app()
-{
-	cudaDeviceSetLimit(cudaLimitMallocHeapSize, 1 << 25);
-}
-
 int main() {
-	// GPUFS setup 
-	int device = 0;
-	char* gpudev = getenv("GPUDEVICE");
-	if (gpudev != NULL)
-		device = atoi(gpudev);
-
-	cudaSetDevice(device);
-
-	cudaDeviceProp deviceProp;
-	cudaGetDeviceProperties(&deviceProp, device);
-	printf("Running on device %d: \"%s\"\n", device, deviceProp.name);
-	volatile GPUGlobals* gpuGlobals;
-	initializer(&gpuGlobals);
-	init_device_app();
-	printf("Finish init GPUFS\n");
 
 	srand( time(NULL) );
 
@@ -41,7 +20,7 @@ int main() {
 	BCECost bce_cost;
 
 	NeuralNetwork nn;
-	nn.addLayer(new LinearLayer("linear_1", Shape(2, 30), gpuGlobals));
+	nn.addLayer(new LinearLayer("linear_1", Shape(2, 30)));
 	nn.addLayer(new ReLUActivation("relu_1"));
 	nn.addLayer(new LinearLayer("linear_2", Shape(30, 1)));
 	nn.addLayer(new SigmoidActivation("sigmoid_output"));
@@ -52,8 +31,7 @@ int main() {
 		float cost = 0.0;
 
 		for (int batch = 0; batch < dataset.getNumOfBatches() - 1; batch++) {
-			Y = nn.forward("input", Shape(100, 2)); // dataset.getBatches().at(batch));
-			// Y = nn.forward(dataset.getBatches().at(batch));
+			Y = nn.forward(dataset.getBatches().at(batch));
 			nn.backprop(Y, dataset.getTargets().at(batch));
 			cost += bce_cost.cost(Y, dataset.getTargets().at(batch));
 		}
@@ -66,12 +44,12 @@ int main() {
 	}
 
 	// compute accuracy
-	//Y = nn.forward(dataset.getBatches().at(dataset.getNumOfBatches() - 1));
-	//Y.copyDeviceToHost();
+	Y = nn.forward(dataset.getBatches().at(dataset.getNumOfBatches() - 1));
+	Y.copyDeviceToHost();
 
-	//float accuracy = computeAccuracy(
-	//		Y, dataset.getTargets().at(dataset.getNumOfBatches() - 1));
-	//std::cout 	<< "Accuracy: " << accuracy << std::endl;
+	float accuracy = computeAccuracy(
+			Y, dataset.getTargets().at(dataset.getNumOfBatches() - 1));
+	std::cout 	<< "Accuracy: " << accuracy << std::endl;
 
 	return 0;
 }

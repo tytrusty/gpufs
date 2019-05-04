@@ -52,16 +52,10 @@ __global__ void linearLayerUpdateWeights(  float* dZ, float* A, float* W,
 	}
 }
 
-__shared__ int f_a;
 __global__ void linearLayerForwardFS(const char* A_fn, float* W, float* Z, float* b,
 									int W_x_dim, int W_y_dim,
 									int A_x_dim, int A_y_dim) {
-	f_a = 0;
-	f_a=gopen(A_fn, O_GRDONLY);
-
-	// if (f_a<0) { ERROR("Failed to open a");}
-
-	// if (ptr_a==GMAP_FAILED) ERROR("GMMAP failed with m_a");
+	int f_a=gopen(A_fn, O_GRDONLY);
 
 	int row = blockIdx.y * blockDim.y + threadIdx.y;
 	int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -81,7 +75,7 @@ __global__ void linearLayerForwardFS(const char* A_fn, float* W, float* Z, float
 		}
 		Z[row * Z_x_dim + col] = Z_value + b[row];
 	}
-	gclose(f_a);
+	// gclose(f_a);
 }
 
 __global__ void linearLayerBackprop(float* W, float* dZ, float *dA,
@@ -129,6 +123,7 @@ __global__ void linearLayerUpdateWeightsFS(float* dZ, char* A_fn, float* W,
 		}
 		W[row * W_x_dim + col] = W[row * W_x_dim + col] - learning_rate * (dW_value / A_x_dim);
 	}
+	// gclose(f_a);
 }
 
 __global__ void linearLayerUpdateBias(  float* dZ, float* b,

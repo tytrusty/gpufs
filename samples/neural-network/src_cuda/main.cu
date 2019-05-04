@@ -13,6 +13,7 @@
 float computeAccuracy(const Matrix& predictions, const Matrix& targets);
 
 int main() {
+    printf("Running regular cuda nn\n");
 
 	srand( time(NULL) );
 
@@ -31,7 +32,7 @@ int main() {
 		float cost = 0.0;
 
 		for (int batch = 0; batch < dataset.getNumOfBatches() - 1; batch++) {
-			Y = nn.forward(dataset.getBatches().at(batch));
+			Y = nn.forward(dataset.getBatch("input"));
 			nn.backprop(Y, dataset.getTargets().at(batch));
 			cost += bce_cost.cost(Y, dataset.getTargets().at(batch));
 		}
@@ -44,12 +45,12 @@ int main() {
 	}
 
 	// compute accuracy
-	Y = nn.forward(dataset.getBatches().at(dataset.getNumOfBatches() - 1));
-	Y.copyDeviceToHost();
+	//Y = nn.forward(dataset.getBatches().at(dataset.getNumOfBatches() - 1));
+	//Y.copyDeviceToHost();
 
-	float accuracy = computeAccuracy(
-			Y, dataset.getTargets().at(dataset.getNumOfBatches() - 1));
-	std::cout 	<< "Accuracy: " << accuracy << std::endl;
+	//float accuracy = computeAccuracy(
+	//		Y, dataset.getTargets().at(dataset.getNumOfBatches() - 1));
+	//std::cout 	<< "Accuracy: " << accuracy << std::endl;
 
 	return 0;
 }

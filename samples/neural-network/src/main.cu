@@ -15,7 +15,7 @@ float computeAccuracy(const Matrix& predictions, const Matrix& targets);
 
 void init_device_app()
 {
-	cudaDeviceSetLimit(cudaLimitMallocHeapSize, 1 << 25);
+	cudaDeviceSetLimit(cudaLimitMallocHeapSize, 1 << 30);
 }
 
 int main() {
@@ -36,7 +36,7 @@ int main() {
 
 	srand( time(NULL) );
 
-	CoordinatesDataset dataset(200, 21);
+	CoordinatesDataset dataset(100, 21);
 	BCECost bce_cost;
 
 	NeuralNetwork nn;
@@ -45,13 +45,17 @@ int main() {
 	nn.addLayer(new LinearLayer("linear_2", Shape(30, 1)));
 	nn.addLayer(new SigmoidActivation("sigmoid_output"));
 
+    printf("Beginning training\n");
 	// network training
 	Matrix Y;
 	for (int epoch = 0; epoch < 1001; epoch++) {
 		float cost = 0.0;
 
+        // Not concerned with actually training, moreso evaluating effect
+        // of using gpufs for loading input matrix on runtime performance,
+        // so just usin junk
 		for (int batch = 0; batch < dataset.getNumOfBatches() - 1; batch++) {
-			Y = nn.forward("input", Shape(200, 2)); // dataset.getBatches().at(batch));
+			Y = nn.forward("input", Shape(100, 2)); // dataset.getBatches().at(batch));
 			nn.backprop(Y, dataset.getTargets().at(batch));
 			cost += bce_cost.cost(Y, dataset.getTargets().at(batch));
 		}
@@ -62,15 +66,6 @@ int main() {
 						<< std::endl;
 		}
 	}
-
-	// compute accuracy
-	//Y = nn.forward(dataset.getBatches().at(dataset.getNumOfBatches() - 1));
-	//Y.copyDeviceToHost();
-
-	//float accuracy = computeAccuracy(
-	//		Y, dataset.getTargets().at(dataset.getNumOfBatches() - 1));
-	//std::cout 	<< "Accuracy: " << accuracy << std::endl;
-
 	return 0;
 }
 

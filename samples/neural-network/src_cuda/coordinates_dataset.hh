@@ -19,5 +19,6 @@ public:
 	int getNumOfBatches();
 	std::vector<Matrix>& getBatches();
 	std::vector<Matrix>& getTargets();
+    Matrix getBatch(char* filename);
 
 };

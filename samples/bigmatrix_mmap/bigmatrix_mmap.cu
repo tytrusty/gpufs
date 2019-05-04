@@ -83,11 +83,7 @@ __global__ void bigmatrix_mmap( char* f_v, char* f_m, char* f_out )
 	zfd_v=gopen(f_v,O_GRDONLY);
 	if (zfd_v<0) ERROR("Failed to open vector");
 
-	printf("before dumbass call %ld\n", fstat(zfd_v));
-
 	volatile float* ptr_v=(volatile float*)gmmap(NULL, fstat(zfd_v),0, O_GRDONLY, zfd_v, 0);
-
-printf("Not a complete failure\n");
 
 	if (ptr_v==GMAP_FAILED) ERROR("GMMAP failed");
 
@@ -130,14 +126,10 @@ printf("Not a complete failure\n");
 	
 	size_t rows_per_block=size_o/gridDim.x;
 	
-
-	printf("3 after single thread thingy\n");
 	for( size_t data_idx=blockIdx.x*rows_per_block; data_idx<(blockIdx.x+1)*rows_per_block; data_idx+=rows_per_chunk)
 	{
 
-printf("gettin\n");
 		volatile float* ptr_row_m=get_row(&ph_m.page,&ph_m.file_offset,data_idx*size_v<<2,size_m<<2,zfd_m,O_GRDONLY);
-printf("got row\n");
 		volatile float* ptr_val_o=get_row(&ph_o.page,&ph_o.file_offset,data_idx<<2,size_o<<2,zfd_o,O_GWRONCE);
 		for( int subrow=0 ;subrow<rows_per_chunk;subrow++){
 			
@@ -152,7 +144,6 @@ printf("got row\n");
 				ptr_row_m=get_row(&ph_m.page,&ph_m.file_offset,_req_offset,size_m<<2,zfd_m,O_GRDONLY);
 			}
 			
-			printf("before iner product\n");
 			inner_product(ptr_v,ptr_row_m, size_v);
 
 			 *ptr_val_o=res;
@@ -163,7 +154,7 @@ printf("got row\n");
 		}
 			
 	}
-	printf("4 after single thread thingy\n");
+
 	if (gmunmap(ph_m.page,0)) ERROR("Failed to unmap big matrix");
 	if (gmunmap(ph_o.page,0)) ERROR("Failed to unmap output");
 	if (gmunmap(ptr_v,0)) ERROR("Failed to unmap vector");
@@ -173,7 +164,6 @@ printf("got row\n");
 	gclose(zfd_v);
 
 	gclose(zfd_o);
-printf("2\n");
 	
 }
 

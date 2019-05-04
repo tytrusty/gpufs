@@ -28,7 +28,7 @@ CC_LIBS=
 # NVCC compiler options:
 MACROS=-DDEBUG_NOINLINE="" -DBLOCK_SIZE="32"
 NVCC=$(CUDA_ROOT_DIR)/bin/nvcc $(MACROS)
-NVCC_FLAGS=--std=c++11 -O3 -rdc=true -maxrregcount=$(REG) -gencode arch=compute_50,code=sm_50 -gencode arch=compute_50,code=sm_50
+NVCC_FLAGS=--std=c++11 -O3 -rdc=true -maxrregcount=$(REG) -gencode arch=compute_61,code=sm_61 -gencode arch=compute_61,code=sm_61
 NVCC_LIBS=
 
 # CUDA library directory:

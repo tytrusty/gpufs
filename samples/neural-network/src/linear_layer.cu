@@ -73,10 +73,7 @@ __global__ void linearLayerForwardFS(const char* A_fn, float* W, float* Z, float
 
 
 	int aBegin = A_y_dim * col * sizeof(float);
-	printf("aBegin: %d\n", aBegin);
-	printf("gmmap of size: %ld\n", W_x_dim*sizeof(float));
 	volatile float* A = (volatile float*)gmmap(NULL,W_x_dim*sizeof(float),0, O_GRDONLY, f_a, aBegin);
-	printf("gmmap success\n");
 
 	if (row < Z_y_dim && col < Z_x_dim) {
 		for (int i = 0; i < W_x_dim; i++) {
@@ -192,7 +189,6 @@ void LinearLayer::initializeBiasWithZeros() {
 }
 
 Matrix& LinearLayer::forward(char* A_fn, Shape A_shape) {
-	printf("A_shape : %d %d\n",A_shape.x, A_shape.y);
 	assert(W.shape.x == A_shape.y);
 
 	is_fs_layer = true;
@@ -227,7 +223,6 @@ void LinearLayer::computeAndStoreLayerOutput() {
 	dim3 num_of_blocks(	(Z.shape.x + block_size.x - 1) / block_size.x,
 						(Z.shape.y + block_size.y - 1) / block_size.y);
 	if (is_fs_layer) {
-		printf("is_fs_layer\n");
 		linearLayerForwardFS<<<num_of_blocks, block_size, 0, gpuGlobals->streamMgr->kernelStream>>>(
 							   A_fn, 
 							   W.data_device.get(),
@@ -283,6 +278,7 @@ void LinearLayer::updateWeights(Matrix& dZ, float learning_rate) {
 									dZ.shape.x, dZ.shape.y,
 									A_shape.x, A_shape.y,
 									learning_rate);
+		run_gpufs_handler(gpuGlobals,0);
 	} else {
 		linearLayerUpdateWeights<<<num_of_blocks, block_size>>>(dZ.data_device.get(),
 									A.data_device.get(),

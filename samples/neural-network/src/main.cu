@@ -33,11 +33,10 @@ int main() {
 	volatile GPUGlobals* gpuGlobals;
 	initializer(&gpuGlobals);
 	init_device_app();
-	printf("Finish init GPUFS\n");
 
 	srand( time(NULL) );
 
-	CoordinatesDataset dataset(100, 21);
+	CoordinatesDataset dataset(200, 21);
 	BCECost bce_cost;
 
 	NeuralNetwork nn;
@@ -52,8 +51,7 @@ int main() {
 		float cost = 0.0;
 
 		for (int batch = 0; batch < dataset.getNumOfBatches() - 1; batch++) {
-			Y = nn.forward("input", Shape(100, 2)); // dataset.getBatches().at(batch));
-			// Y = nn.forward(dataset.getBatches().at(batch));
+			Y = nn.forward("input", Shape(200, 2)); // dataset.getBatches().at(batch));
 			nn.backprop(Y, dataset.getTargets().at(batch));
 			cost += bce_cost.cost(Y, dataset.getTargets().at(batch));
 		}

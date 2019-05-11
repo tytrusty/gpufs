@@ -52,10 +52,11 @@ __global__ void linearLayerUpdateWeights(  float* dZ, float* A, float* W,
 	}
 }
 
+__shared__ int f_a;
 __global__ void linearLayerForwardFS(const char* A_fn, float* W, float* Z, float* b,
 									int W_x_dim, int W_y_dim,
 									int A_x_dim, int A_y_dim) {
-	int f_a=gopen(A_fn, O_GRDONLY);
+	f_a=gopen(A_fn, O_GRDONLY);
 
 	int row = blockIdx.y * blockDim.y + threadIdx.y;
 	int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -67,7 +68,10 @@ __global__ void linearLayerForwardFS(const char* A_fn, float* W, float* Z, float
 
 
 	int aBegin = A_y_dim * col * sizeof(float);
+	//volatile float* A = (volatile float*)gmmap(NULL,W_x_dim*sizeof(float),0, O_GRDONLY, f_a, aBegin);
 	volatile float* A = (volatile float*)gmmap(NULL,W_x_dim*sizeof(float),0, O_GRDONLY, f_a, aBegin);
+
+// __device__ size_t gread(int fd, size_t offset, size_t size, uchar* buffer);
 
 	if (row < Z_y_dim && col < Z_x_dim) {
 		for (int i = 0; i < W_x_dim; i++) {
@@ -75,7 +79,6 @@ __global__ void linearLayerForwardFS(const char* A_fn, float* W, float* Z, float
 		}
 		Z[row * Z_x_dim + col] = Z_value + b[row];
 	}
-	// gclose(f_a);
 }
 
 __global__ void linearLayerBackprop(float* W, float* dZ, float *dA,
@@ -103,7 +106,7 @@ __global__ void linearLayerUpdateWeightsFS(float* dZ, char* A_fn, float* W,
 					 int dZ_x_dim, int dZ_y_dim,
 					 int A_x_dim, int A_y_dim,
 					 float learning_rate) {
-	int f_a=gopen(A_fn, O_GRDONLY);
+	f_a=gopen(A_fn, O_GRDONLY);
 
 	int col = blockIdx.x * blockDim.x + threadIdx.x;
 	int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -123,7 +126,7 @@ __global__ void linearLayerUpdateWeightsFS(float* dZ, char* A_fn, float* W,
 		}
 		W[row * W_x_dim + col] = W[row * W_x_dim + col] - learning_rate * (dW_value / A_x_dim);
 	}
-	// gclose(f_a);
+	gclose(f_a);
 }
 
 __global__ void linearLayerUpdateBias(  float* dZ, float* b,
@@ -214,9 +217,16 @@ Matrix& LinearLayer::forward(Matrix& A) {
 }
 
 void LinearLayer::computeAndStoreLayerOutput() {
-	dim3 block_size(8, 8);
+	// dim3 block_size(8, 8);
+	//dim3 num_of_blocks(	(Z.shape.x + block_size.x - 1) / block_size.x,
+	//					(Z.shape.y + block_size.y - 1) / block_size.y);
+	int NUM_BLOCKS=1024;
+	dim3 block_size(NUM_BLOCKS, 1);
 	dim3 num_of_blocks(	(Z.shape.x + block_size.x - 1) / block_size.x,
 						(Z.shape.y + block_size.y - 1) / block_size.y);
+
+
+
 	if (is_fs_layer) {
 		linearLayerForwardFS<<<num_of_blocks, block_size, 0, gpuGlobals->streamMgr->kernelStream>>>(
 							   A_fn, 

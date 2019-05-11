@@ -7,6 +7,12 @@
 #include "sigmoid_activation.hh"
 #include "nn_exception.hh"
 #include "bce_cost.hh"
+#include <ctime>
+#include <cstdio>
+#include <iostream>
+#include <chrono>
+
+typedef std::chrono::high_resolution_clock Clock;
 
 #include "coordinates_dataset.hh"
 
@@ -17,7 +23,7 @@ int main() {
 
 	srand( time(NULL) );
 
-	CoordinatesDataset dataset(100, 21);
+	CoordinatesDataset dataset(10000, 21);
 	BCECost bce_cost;
 
 	NeuralNetwork nn;
@@ -25,6 +31,8 @@ int main() {
 	nn.addLayer(new ReLUActivation("relu_1"));
 	nn.addLayer(new LinearLayer("linear_2", Shape(30, 1)));
 	nn.addLayer(new SigmoidActivation("sigmoid_output"));
+
+    auto t1 = Clock::now();
 
 	// network training
 	Matrix Y;
@@ -40,7 +48,10 @@ int main() {
 		if (epoch % 100 == 0) {
 			std::cout 	<< "Epoch: " << epoch
 						<< ", Cost: " << cost / dataset.getNumOfBatches()
+                        << ", Time (s): "
+                        << (std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - t1).count()) / 1000.0
 						<< std::endl;
+            t1 = Clock::now();
 		}
 	}
 

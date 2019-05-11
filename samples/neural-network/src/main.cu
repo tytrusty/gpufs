@@ -10,6 +10,13 @@
 #include "bce_cost.hh"
 
 #include "coordinates_dataset.hh"
+#include <ctime>
+#include <cstdio>
+#include <iostream>
+#include <chrono>
+
+typedef std::chrono::high_resolution_clock Clock;
+
 
 float computeAccuracy(const Matrix& predictions, const Matrix& targets);
 
@@ -36,7 +43,7 @@ int main() {
 
 	srand( time(NULL) );
 
-	CoordinatesDataset dataset(100, 21);
+	CoordinatesDataset dataset(10000, 21);
 	BCECost bce_cost;
 
 	NeuralNetwork nn;
@@ -48,6 +55,10 @@ int main() {
     printf("Beginning training\n");
 	// network training
 	Matrix Y;
+
+    auto t1 = Clock::now();
+
+
 	for (int epoch = 0; epoch < 1001; epoch++) {
 		float cost = 0.0;
 
@@ -55,7 +66,7 @@ int main() {
         // of using gpufs for loading input matrix on runtime performance,
         // so just usin junk
 		for (int batch = 0; batch < dataset.getNumOfBatches() - 1; batch++) {
-			Y = nn.forward("input", Shape(100, 2)); // dataset.getBatches().at(batch));
+			Y = nn.forward("input", Shape(10000, 2)); // dataset.getBatches().at(batch));
 			nn.backprop(Y, dataset.getTargets().at(batch));
 			cost += bce_cost.cost(Y, dataset.getTargets().at(batch));
 		}
@@ -63,7 +74,10 @@ int main() {
 		if (epoch % 100 == 0) {
 			std::cout 	<< "Epoch: " << epoch
 						<< ", Cost: " << cost / dataset.getNumOfBatches()
+                        << ", Time (s): "
+                        << (std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - t1).count()) / 1000.0
 						<< std::endl;
+            t1 = Clock::now();
 		}
 	}
 	return 0;

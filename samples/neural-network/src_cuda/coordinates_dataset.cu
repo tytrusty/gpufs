@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <iostream>
+#include <unistd.h>
 
 CoordinatesDataset::CoordinatesDataset(size_t batch_size, size_t number_of_batches) :
 	batch_size(batch_size), number_of_batches(number_of_batches)
@@ -30,7 +32,7 @@ Matrix CoordinatesDataset::getBatch(char* filename) {
     dummy_batch.allocateMemory();
 
 	int fd=open(filename,O_RDONLY);
-    pread(fd, dummy_batch.data_host.get(), batch_size*2*sizeof(float), 0);
+    size_t data_read = pread(fd, dummy_batch.data_host.get(), batch_size*2*sizeof(float), 0);
     dummy_batch.copyHostToDevice();
 
 	close(fd);

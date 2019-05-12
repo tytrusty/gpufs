@@ -17,11 +17,9 @@ void NeuralNetwork::addLayer(NNLayer* layer) {
 
 Matrix NeuralNetwork::forward(Matrix X) {
 	Matrix Z = X;
-
 	for (auto layer : layers) {
 		Z = layer->forward(Z);
 	}
-
 	Y = Z;
 	return Y;
 }

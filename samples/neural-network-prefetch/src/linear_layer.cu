@@ -6,10 +6,6 @@
 #include "linear_layer.hh"
 #include "nn_exception.hh"
 
-#include "fs_globals.cu.h"
-#include "fs_calls.cu.h"
-#include "host_loop.h"
-
 __global__ void linearLayerForward( float* W, float* A, float* Z, float* b,
 									int W_x_dim, int W_y_dim,
 									int A_x_dim, int A_y_dim) {
@@ -53,11 +49,9 @@ __global__ void linearLayerUpdateWeights(  float* dZ, float* A, float* W,
 }
 
 __shared__ int f_a;
-__global__ void linearLayerForwardFS(const char* A_fn, float* W, float* Z, float* b,
+__global__ void linearLayerForwardFS(float* W, float* A, float* Z, float* b,
 									int W_x_dim, int W_y_dim,
 									int A_x_dim, int A_y_dim) {
-	f_a=gopen(A_fn, O_GRDONLY);
-
 	int row = blockIdx.y * blockDim.y + threadIdx.y;
 	int col = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -66,9 +60,7 @@ __global__ void linearLayerForwardFS(const char* A_fn, float* W, float* Z, float
 
 	float Z_value = 0;
 
-
 	int aBegin = A_y_dim * col * sizeof(float);
-	volatile float* A = (volatile float*)gmmap(NULL,W_x_dim*sizeof(float),0, O_GRDONLY, f_a, aBegin);
 
 	if (row < Z_y_dim && col < Z_x_dim) {
 		for (int i = 0; i < W_x_dim; i++) {
@@ -99,11 +91,10 @@ __global__ void linearLayerBackprop(float* W, float* dZ, float *dA,
 	}
 }
 
-__global__ void linearLayerUpdateWeightsFS(float* dZ, char* A_fn, float* W,
+__global__ void linearLayerUpdateWeightsFS(float* dZ, float* W, float* A,
 					 int dZ_x_dim, int dZ_y_dim,
 					 int A_x_dim, int A_y_dim,
 					 float learning_rate) {
-	f_a=gopen(A_fn, O_GRDONLY);
 
 	int col = blockIdx.x * blockDim.x + threadIdx.x;
 	int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -115,15 +106,13 @@ __global__ void linearLayerUpdateWeightsFS(float* dZ, char* A_fn, float* W,
 	float dW_value = 0.0f;
 
 	int aBegin = A_y_dim * col * sizeof(float);
-	volatile float* A = (volatile float*)gmmap(NULL,W_x_dim*sizeof(float),0, O_GRDONLY, f_a, aBegin);
 
 	if (row < W_y_dim && col < W_x_dim) {
 		for (int i = 0; i < dZ_x_dim; i++) {
-			dW_value += dZ[row * dZ_x_dim + i] * A[i];
+			dW_value += dZ[row * dZ_x_dim + i] * A[aBegin + i];
 		}
 		W[row * W_x_dim + col] = W[row * W_x_dim + col] - learning_rate * (dW_value / A_x_dim);
 	}
-	gclose(f_a);
 }
 
 __global__ void linearLayerUpdateBias(  float* dZ, float* b,
@@ -147,7 +136,9 @@ LinearLayer::LinearLayer(std::string name, Shape W_shape, volatile GPUGlobals* g
 	W.allocateMemory();
 	initializeBiasWithZeros();
 	initializeWeightsRandomly();
+	is_fs_layer = true;
 }
+
 
 LinearLayer::LinearLayer(std::string name, Shape W_shape) :
 	W(W_shape), b(W_shape.y, 1)
@@ -177,10 +168,9 @@ void LinearLayer::initializeBiasWithZeros() {
 	for (int x = 0; x < b.shape.x; x++) {
 		b[x] = 0;
 	}
-
 }
 
-Matrix& LinearLayer::forward(char* A_fn, Shape A_shape) {
+Matrix& LinearLayer::forward(float* A_data, Shape A_shape) {
 	assert(W.shape.x == A_shape.y);
 
 	is_fs_layer = true;
@@ -191,7 +181,7 @@ Matrix& LinearLayer::forward(char* A_fn, Shape A_shape) {
 	Shape Z_shape(A_shape.x, W.shape.y);
 	Z.allocateMemoryIfNotAllocated(Z_shape);
 
-	computeAndStoreLayerOutput();
+	computeAndStoreLayerOutput(A_data);
 	NNException::throwIfDeviceErrorsOccurred("Cannot perform linear layer forward propagation.");
 
 	return Z;
@@ -204,33 +194,36 @@ Matrix& LinearLayer::forward(Matrix& A) {
 	Shape Z_shape(A.shape.x, W.shape.y);
 	Z.allocateMemoryIfNotAllocated(Z_shape);
 
-	computeAndStoreLayerOutput();
+	computeAndStoreLayerOutput(A.data.get());
 	NNException::throwIfDeviceErrorsOccurred("Cannot perform linear layer forward propagation.");
 
 	return Z;
 }
 
-void LinearLayer::computeAndStoreLayerOutput() {
-	// dim3 block_size(8, 8);
-	//dim3 num_of_blocks(	(Z.shape.x + block_size.x - 1) / block_size.x,
-	//					(Z.shape.y + block_size.y - 1) / block_size.y);
-	int NUM_BLOCKS=512;
-	dim3 block_size(NUM_BLOCKS, 2);
+void LinearLayer::computeAndStoreLayerOutput(float* A_data) {
+	dim3 block_size(8, 8);
 	dim3 num_of_blocks(	(Z.shape.x + block_size.x - 1) / block_size.x,
 						(Z.shape.y + block_size.y - 1) / block_size.y);
+	//int NUM_BLOCKS=512;
+	//dim3 block_size(NUM_BLOCKS, 2);
+	//dim3 num_of_blocks(	(Z.shape.x + block_size.x - 1) / block_size.x,
+	//					(Z.shape.y + block_size.y - 1) / block_size.y);
+
+
 
 	if (is_fs_layer) {
-		linearLayerForwardFS<<<num_of_blocks, block_size, 0, gpuGlobals->streamMgr->kernelStream>>>(
-							   A_fn, 
+        prefetch_A = A_data;
+		linearLayerForward<<<num_of_blocks, block_size>>>(
 							   W.data.get(),
+                               A_data,
 							   Z.data.get(),
 						 	   b.data.get(),
 							   W.shape.x, W.shape.y,
 							   A_shape.x, A_shape.y);
-		run_gpufs_handler(gpuGlobals,0);
+		// run_gpufs_handler(gpuGlobals,0);
 	} else {
 		linearLayerForward<<<num_of_blocks, block_size>>>( W.data.get(),
-							   A.data.get(),
+                               A_data,
 							   Z.data.get(),
 							   b.data.get(),
 							   W.shape.x, W.shape.y,
@@ -266,16 +259,16 @@ void LinearLayer::computeAndStoreBackpropError(Matrix& dZ) {
 
 void LinearLayer::updateWeights(Matrix& dZ, float learning_rate) {
 	dim3 block_size(8, 8);
-	dim3 num_of_blocks(	(A_shape.x + block_size.x - 1) / block_size.x,
-						(A_shape.y + block_size.y - 1) / block_size.y);
+	dim3 num_of_blocks(	(W.shape.x + block_size.x - 1) / block_size.x,
+						(W.shape.y + block_size.y - 1) / block_size.y);
 	if (is_fs_layer) {
 		linearLayerUpdateWeightsFS<<<num_of_blocks, block_size>>>(dZ.data.get(),
-									A_fn,
+                                    prefetch_A, 
 									W.data.get(),
 									dZ.shape.x, dZ.shape.y,
 									A_shape.x, A_shape.y,
 									learning_rate);
-		run_gpufs_handler(gpuGlobals,0);
+		// run_gpufs_handler(gpuGlobals,0);
 	} else {
 		linearLayerUpdateWeights<<<num_of_blocks, block_size>>>(dZ.data.get(),
 									A.data.get(),

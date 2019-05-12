@@ -43,7 +43,7 @@ int main() {
 
 	srand( time(NULL) );
 
-	CoordinatesDataset dataset(10000, 21);
+	CoordinatesDataset dataset(10000000, 21);
 	BCECost bce_cost;
 
 	NeuralNetwork nn;
@@ -66,9 +66,9 @@ int main() {
         // of using gpufs for loading input matrix on runtime performance,
         // so just usin junk
 		for (int batch = 0; batch < dataset.getNumOfBatches() - 1; batch++) {
-			Y = nn.forward("input", Shape(10000, 2)); // dataset.getBatches().at(batch));
-			nn.backprop(Y, dataset.getTargets().at(batch));
-			cost += bce_cost.cost(Y, dataset.getTargets().at(batch));
+			Y = nn.forward("input", Shape(10000000, 2)); // dataset.getBatches().at(batch));
+			//nn.backprop(Y, dataset.getTargets().at(batch));
+			//cost += bce_cost.cost(Y, dataset.getTargets().at(batch));
 		}
 
 		if (epoch % 100 == 0) {

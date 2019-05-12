@@ -104,16 +104,12 @@ void LinearLayer::initializeWeightsRandomly() {
 			W[y * W.shape.x + x] = normal_distribution(generator) * weights_init_threshold;
 		}
 	}
-
-	W.copyHostToDevice();
 }
 
 void LinearLayer::initializeBiasWithZeros() {
 	for (int x = 0; x < b.shape.x; x++) {
 		b[x] = 0;
 	}
-
-	b.copyHostToDevice();
 }
 
 Matrix& LinearLayer::forward(Matrix& A) {
@@ -133,10 +129,10 @@ void LinearLayer::computeAndStoreLayerOutput(Matrix& A) {
 	dim3 block_size(8, 8);
 	dim3 num_of_blocks(	(Z.shape.x + block_size.x - 1) / block_size.x,
 						(Z.shape.y + block_size.y - 1) / block_size.y);
-	linearLayerForward<<<num_of_blocks, block_size>>>( W.data_device.get(),
-													   A.data_device.get(),
-													   Z.data_device.get(),
-													   b.data_device.get(),
+	linearLayerForward<<<num_of_blocks, block_size>>>( W.data.get(),
+													   A.data.get(),
+													   Z.data.get(),
+													   b.data.get(),
 													   W.shape.x, W.shape.y,
 													   A.shape.x, A.shape.y);
 }
@@ -160,9 +156,9 @@ void LinearLayer::computeAndStoreBackpropError(Matrix& dZ) {
 	dim3 block_size(8, 8);
 	dim3 num_of_blocks(	(A.shape.x + block_size.x - 1) / block_size.x,
 						(A.shape.y + block_size.y - 1) / block_size.y);
-	linearLayerBackprop<<<num_of_blocks, block_size>>>( W.data_device.get(),
-														dZ.data_device.get(),
-														dA.data_device.get(),
+	linearLayerBackprop<<<num_of_blocks, block_size>>>( W.data.get(),
+														dZ.data.get(),
+														dA.data.get(),
 														W.shape.x, W.shape.y,
 														dZ.shape.x, dZ.shape.y);
 }
@@ -171,9 +167,9 @@ void LinearLayer::updateWeights(Matrix& dZ, float learning_rate) {
 	dim3 block_size(8, 8);
 	dim3 num_of_blocks(	(W.shape.x + block_size.x - 1) / block_size.x,
 						(W.shape.y + block_size.y - 1) / block_size.y);
-	linearLayerUpdateWeights<<<num_of_blocks, block_size>>>(dZ.data_device.get(),
-															A.data_device.get(),
-															W.data_device.get(),
+	linearLayerUpdateWeights<<<num_of_blocks, block_size>>>(dZ.data.get(),
+															A.data.get(),
+															W.data.get(),
 															dZ.shape.x, dZ.shape.y,
 															A.shape.x, A.shape.y,
 															learning_rate);
@@ -182,8 +178,8 @@ void LinearLayer::updateWeights(Matrix& dZ, float learning_rate) {
 void LinearLayer::updateBias(Matrix& dZ, float learning_rate) {
 	dim3 block_size(256);
 	dim3 num_of_blocks( (dZ.shape.y * dZ.shape.x + block_size.x - 1) / block_size.x);
-	linearLayerUpdateBias<<<num_of_blocks, block_size>>>(dZ.data_device.get(),
-														 b.data_device.get(),
+	linearLayerUpdateBias<<<num_of_blocks, block_size>>>(dZ.data.get(),
+														 b.data.get(),
 														 dZ.shape.x, dZ.shape.y,
 														 b.shape.x, learning_rate);
 }

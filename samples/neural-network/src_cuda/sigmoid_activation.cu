@@ -40,7 +40,7 @@ Matrix& SigmoidActivation::forward(Matrix& Z) {
 	dim3 block_size(256);
 	dim3 num_of_blocks((Z.shape.y * Z.shape.x + block_size.x - 1) / block_size.x);
 
-	sigmoidActivationForward<<<num_of_blocks, block_size>>>(Z.data_device.get(), A.data_device.get(),
+	sigmoidActivationForward<<<num_of_blocks, block_size>>>(Z.data.get(), A.data.get(),
 														   	Z.shape.x, Z.shape.y);
 	NNException::throwIfDeviceErrorsOccurred("Cannot perform sigmoid forward propagation.");
 
@@ -52,8 +52,8 @@ Matrix& SigmoidActivation::backprop(Matrix& dA, float learning_rate) {
 
 	dim3 block_size(256);
 	dim3 num_of_blocks((Z.shape.y * Z.shape.x + block_size.x - 1) / block_size.x);
-	sigmoidActivationBackprop<<<num_of_blocks, block_size>>>(Z.data_device.get(), dA.data_device.get(),
-															 dZ.data_device.get(),
+	sigmoidActivationBackprop<<<num_of_blocks, block_size>>>(Z.data.get(), dA.data.get(),
+															 dZ.data.get(),
 															 Z.shape.x, Z.shape.y);
 	NNException::throwIfDeviceErrorsOccurred("Cannot perform sigmoid back propagation");
 

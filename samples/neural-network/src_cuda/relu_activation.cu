@@ -39,7 +39,7 @@ Matrix& ReLUActivation::forward(Matrix& Z) {
 	dim3 block_size(256);
 	dim3 num_of_blocks((Z.shape.y * Z.shape.x + block_size.x - 1) / block_size.x);
 
-	reluActivationForward<<<num_of_blocks, block_size>>>(Z.data_device.get(), A.data_device.get(),
+	reluActivationForward<<<num_of_blocks, block_size>>>(Z.data.get(), A.data.get(),
 														 Z.shape.x, Z.shape.y);
 	NNException::throwIfDeviceErrorsOccurred("Cannot perform ReLU forward propagation.");
 
@@ -51,8 +51,8 @@ Matrix& ReLUActivation::backprop(Matrix& dA, float learning_rate) {
 
 	dim3 block_size(256);
 	dim3 num_of_blocks((Z.shape.y * Z.shape.x + block_size.x - 1) / block_size.x);
-	reluActivationBackprop<<<num_of_blocks, block_size>>>(Z.data_device.get(), dA.data_device.get(),
-													      dZ.data_device.get(),
+	reluActivationBackprop<<<num_of_blocks, block_size>>>(Z.data.get(), dA.data.get(),
+													      dZ.data.get(),
 														  Z.shape.x, Z.shape.y);
 	NNException::throwIfDeviceErrorsOccurred("Cannot perform ReLU back propagation");
 
